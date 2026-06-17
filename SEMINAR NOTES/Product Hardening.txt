@@ -1,0 +1,47 @@
+** Hardening in Production **
+Consider attack surfaces:
+1) Shell - interactive 
+2) Logging - format strings and internals leaking over the wire
+3) ASSERTS - source path and file names in the binary
+4) Predictable RNG - default uses a predictable RNG.
+
+## KEEP DEV AND RELEASE AS 2 DISTINCT CONFIGS - picked at build time using "Snippets" ##
+
+** Use snippets to create different configs (release & dev): **
+1) Add snippets/release/snippet.yml folder. Example file contents:
+name: release
+append:
+  EXTRA_CONF_FILE: release.conf
+  EXTRA_DTC_OVERLAY_FILE: release.overlay
+
+2) Added snippets/release/release.conf.  Example:
+# Example release prj.conf settings
+CONFIG_SHELL=n
+CONFIG_LOG=n
+CONFIG_ASSERT=n
+CONFIG_TEST_RANDOM_GENERATOR=n
+
+3) Added snippets/release/release.overlay.  Example:
+// Overlay specifically for release builds
+/ {
+    aliases {
+        led0 = &blue_led;
+    };
+};
+
+BUILD RELEASE VERSION USING SNIPPET (with -S <target folder in snippets folder>):
+west build -b training -d build/release app -S release --pristine
+
+
+
+** HARDENING BUILD **
+"hardenconfig" audits your config
+To use, add the -t hardenconfig to the west build ... line (i.e. like menuconfig)
+
+Important Misc Hardening Items:
+1) STACK_SENTINEL - detect stack overflows (to prevent exploitation)
+2) TEST_RANDOM_GENERATOR=n - Prevents using the predictable RNG
+3) BUILD_OUTPUT_STRIPPED - strips symbols from the binary to make harder for attackers.
+4) CONFIG_LOG=n
+5) CONFIG_SHELL=n
+

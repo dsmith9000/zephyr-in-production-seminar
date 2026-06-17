@@ -1,0 +1,16 @@
+
+** Creating Custom Board Definition From Existing Supported Board **
+
+1) Copy the closest actual zephyr board defs to new boards folder (either in your project or 1 layer above)
+2) Change names of everything specific to the desired name EXCEPT .dtsi files. We will change to "training" as the target name for this example.
+        * File: Kconfig
+            1) Change "config ###" to desired target "config TRAINING"
+        * File: Kconfig.oldtarget -> Kconfig.training
+            1) Change "config ###" to desired target "config BOARD_TRAINING"
+            2) Change "select SOC_MCXA156 if ###" to desired target "select SOC_MCXA156 if BOARD_TRAINING"
+        * File: ###_defconfig -> training_defconfig
+        * File: ###.dts -> training.dts
+        * File: ###.yaml -> training.yaml
+            1) Change "identifier: ###" to "identifier: training"
+            2) Change "name: ###" to "name: MY TRAINING BOARD"
+
