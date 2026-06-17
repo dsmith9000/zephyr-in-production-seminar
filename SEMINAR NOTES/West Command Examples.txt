@@ -1,0 +1,44 @@
+Command Shortcuts:
+------------------
+
+** WEST BUILD **
+1) BUILD APP FOR SPECIFIED "-b <board>" TARGET (SINGLE-STAGE BUILD):
+west build -b frdm_mcxa156 app --pristine
+west build -b training app --pristine
+
+2a) BUILD MCUBOOT FOR SPECIFIED TARGET (SINGLE-STAGE BUILD) IN -d <target> directory:
+west build -b training -d build/mcuboot ../deps/bootloader/mcuboot/boot/zephyr/ --pristine
+
+2b) BUILD MCUBOOT WITH *SPECIFIED KEY* FOR SPECIFIED TARGET (SINGLE-STAGE BUILD) IN -d <target>:
+# NOTE: Escaping seems required with quoted key path.
+west build -d build/mcuboot_mykey -b training ../deps/bootloader/mcuboot/boot/zephyr --pristine --  -DCONFIG_BOOT_SIGNATURE_KEY_FILE=\"/home/user/Desktop/zephyr-in-production/keys/my-key.pem\"
+
+3) BUILD APP FOR SPECIFIED TARGET (MULTI-STAGE SYSBUILD BUILD) IN -d <target>:
+# When sysbuild.conf specifies MCUboot, it will build bootloader AND app.
+west build -b training app --sysbuild -d build/sys --pristine
+
+4) BUILD APP ... USING SNIPPET (-S <snippet name>):
+# Useful for defining 'dev' and 'release' builds
+west build -b training -d build/snip_test -S release --pristine
+
+
+** WEST FLASH **
+NOTE: west flash is aware of and handles single and multi-stage builds automatically. If a multistage is built, west flash will program each built stage.
+If a signed image is created, west flash will default to programming that one (e.g. zephyr.signed.bin instead of zephyr.bin)
+
+1) FLASH BUILT APP TO TARGET USING SPECIFIED RUNNER
+west flash --runner pyocd
+
+2) FLASH BUILT APP IN THE -d <directory> TO TARGET
+west flash --runner pyocd -d build/sys
+
+3) FLASH THE SPECIFIED 'DOMAIN' OF A MULTISTAGE BUILD (INSTEAD OF FLASHING ALL OF THEM)
+# Only flashs app for a multistaged build consisting of mcuboot and app.
+west flash --runner pyocd --domain app
+
+4a) FLASH SPECIFIED BINARY FILE OF THE SPECIFIED 'DOMAIN' OF A MULTISTAGE BUILD (INSTEAD OF FLASHING ALL OF THEM)
+west flash --runner pyocd --domain app --bin-file build/app/zephyr/zephyr.signed.bin
+west flash --runner pyocd --domain app --bin-file build/app/zephyr/zephyr.bin
+
+4b) FLASH SPECIFIED HEX FILE OF THE SPECIFIED 'DOMAIN' OF A MULTISTAGE BUILD (INSTEAD OF FLASHING ALL OF THEM)
+west flash --runner pyocd --domain app --hex-file build/app/zephyr/zephyr.hex

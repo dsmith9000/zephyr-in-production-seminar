@@ -1,0 +1,13 @@
+** USING CI with github **
+
+1) Can be configured to automatically creates a .signed.bin.
+2) Github Secrets can be used to hold signing key.
+
+"Workflow Skeleton"
+1) Check out the repo.
+2) Set up Zephyr (toolchain + West)
+3) Write the signing key from a secret to disk
+4) Build-sign-verify-upload
+
+
+Create .github

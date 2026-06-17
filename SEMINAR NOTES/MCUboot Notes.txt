@@ -1,0 +1,83 @@
+** MCUboot Notes **
+
+Small bootloader that run first from reset.
+Verifies signature of the app image before running it.
+Supports 2 slots (primary/secondary) for safe upgrade and rollback.
+MCUboot costs about 32-64KB of flash and ~100-500ms of boot latency.
+
+It is NOT an OTA transfer agent, key management, or network stack.
+    * Application must handle these issues.
+
+MCUboot order of operations:
+1) Run on reset from 0x00
+2) Read header of primary slot
+3) Verify signature vs baked-in public key
+4) Pending upgrade? swap/move/overwrite
+5) Jump to application reset vector ONLY IF signature is valid
+
+Modes:
+1) Overwrite-only: copy new over old -- simple, but risk of bricking device
+2) Swap-using-move: sector-by-sector (no scratch). Atomic, slower, flash wear
+3) swap-using-scratch: swap via scratch partition. Classic approach - needs scratch
+4) Direct-XIP: jump to newest valid slot. Fast. Both slots must be XIP.
+    * !! Must create 2 binaries per release: one for each slot since each must contain the right addresses for that particular slot.
+5) Swap-using-offset: image at 2nd sector, swap down (the upstream's choice)
+
+
+Default used by zephyr is "Swap-using-move" unless otherwise specified in 
+
+
+
+**Multistep process: Create MCUboot with key and Signed app **
+1) Build MCUboot.  SPECIFY SIGNING KEY or it will use default key! 
+NOTE: Escaping of " in path seems important to prevent build errors.
+NOTE: Must use full path to key for bootloader (or relative from the mcuboot project itself).
+west build -d build/boot -b training ../deps/bootloader/mcuboot/boot/zephyr --pristine -- -DCONFIG_BOOT_SIGNATURE_KEY_FILE=\"/<fullpath/keys/my-key.pem\"
+2) Build App:
+west build -d build/app -b training app --pristine -- -DCONFIG_BOOTLOADER_MCUBOOT=y
+3) Sign app with key used in step 1 (see details below)
+west sign -d build/app -t imgtool -- --key <path/to/mykey.pem>
+4) Flash the MCUBOOT
+west flash -d build/boot
+5) Flash the signed app:
+west flash -d build/app --bin-file build/app/zephyr/zephyr.signed.bin
+
+
+** SYSBUILD FOR MCUBOOT + APP **
+USING SYSBUILD turns a multistep build process (build bootloader, build app, sign app) into a single build step!
+1) Create sysbuild.conf with:
+SB_CONFIG_BOOTLOADER_MCUBOOT=y
+SB_CONFIG_BOOT_SIGNATURE_KEY_FILE="${APP_DIR}/../keys/my-key.pem"
+2) Build using sysbuild:
+west build -b training app --sysbuild -d build/destination --pristine
+
+3a) FOR FLASHING: 'west flash -d <builddir> --runner <runner>' automatically does multistage (loads mcuboot first, then loads signed app).
+3b) FOR CHIP IMAGE: Must manually combine using srec_cat or similar the bootloader .bin and the app .signed.bin files.
+
+
+** Signing **
+
+**Imgtool**
+Python program to create keys.
+Create key:
+imgtool keygen -k keys/my-key.pem -t rsa-2048
+
+Get pub key:
+imgtool getpub -k keys/my-key.pem  -e lang-c
+
+
+Verify signature:
+imgtool verify -k keys/my-key.pem  build/own_sys/app/zephyr/zephyr.signed.bin 
+
+Info about a signed app:
+ imgtool dumpinfo build/own_sys/app/zephyr/zephyr.signed.bin 
+
+*NOTE: CAN / SHOULD USE WEST SIGN with it using IMGTOOL on backend for signing
+EXAMPLE: west sign -d app/build -t imgtool -- --key keys/my-key.pem --version 1.0.0
+<** Need to do some further checking on this approach/option **>
+
+
+** MCUBoot IMG_MANAGER and MCUMGR **
+
+Additional tools that interface with MCUBoot to enable device firmware updates in application.
+Need further investigation to see how they would potentially benefit our solution.
